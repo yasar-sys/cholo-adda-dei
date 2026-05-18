@@ -23,8 +23,8 @@ export function TopBar() {
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-4">
         <Link to="/" className="flex items-center gap-2">
-          <div className="grid size-9 place-items-center rounded-xl bg-grad-indigo text-primary-foreground shadow-soft">
-            <Sparkles className="size-[18px]" />
+          <div className="grid size-9 place-items-center overflow-hidden rounded-xl bg-grad-indigo shadow-soft">
+            <img src="/logo.png" alt="Adda Logo" className="h-full w-full object-cover" />
           </div>
           <div className="leading-tight">
             <div className="font-display text-base font-bold text-foreground">

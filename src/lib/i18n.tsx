@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 export type Lang = "bn" | "en";
 
 const dict = {
-  appName:        { bn: "ইনফিনিটি",            en: "Infinity" },
+  appName:        { bn: "আড্ডা",            en: "Adda" },
   tagline:        { bn: "বাংলার বিশ্বস্ত সামাজিক জগৎ", en: "Bangla's trusted social world" },
 
   // nav
@@ -82,13 +82,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const saved = localStorage.getItem("infinity-lang") as Lang | null;
+    const saved = localStorage.getItem("adda-lang") as Lang | null;
     if (saved === "bn" || saved === "en") setLangState(saved);
   }, []);
 
   const setLang = (l: Lang) => {
     setLangState(l);
-    if (typeof window !== "undefined") localStorage.setItem("infinity-lang", l);
+    if (typeof window !== "undefined") localStorage.setItem("adda-lang", l);
   };
 
   const t = (k: Key) => dict[k][lang];
