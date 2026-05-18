@@ -45,7 +45,7 @@ function ChatPage() {
         {sampleChats.map((c) => (
           <li key={c.id} className="flex items-center gap-3 px-4 py-3 active:bg-secondary">
             <div className="relative">
-              <img src={c.avatar} alt="" width={52} height={52} loading="lazy" className="size-13 rounded-full object-cover" />
+              <img src={c.avatar} alt="" width={52} height={52} loading="lazy" className="size-[52px] rounded-full object-cover" />
               {c.online && <span className="absolute bottom-0 right-0 size-3 rounded-full bg-trust-high ring-2 ring-card" />}
             </div>
             <div className="min-w-0 flex-1">

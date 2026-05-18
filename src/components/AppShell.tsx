@@ -24,7 +24,7 @@ export function TopBar() {
       <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-4">
         <Link to="/" className="flex items-center gap-2">
           <div className="grid size-9 place-items-center rounded-xl bg-grad-indigo text-primary-foreground shadow-soft">
-            <Sparkles className="size-4.5" />
+            <Sparkles className="size-[18px]" />
           </div>
           <div className="leading-tight">
             <div className="font-display text-base font-bold text-foreground">

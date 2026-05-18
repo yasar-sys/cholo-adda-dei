@@ -21,7 +21,7 @@ function Composer() {
           className="min-h-[44px] flex-1 resize-none rounded-2xl border border-border bg-background px-3 py-2.5 text-sm placeholder:text-muted-foreground focus:border-accent focus:outline-none"
         />
       </div>
-      <div className="mt-2 flex items-center justify-between pl-13">
+      <div className="mt-2 flex items-center justify-between pl-[52px]">
         <div className="flex gap-1 text-muted-foreground">
           <button className="grid size-9 place-items-center rounded-full hover:bg-secondary" aria-label="image"><ImageIcon className="size-4" /></button>
           <button className="grid size-9 place-items-center rounded-full hover:bg-secondary" aria-label="location"><MapPin className="size-4" /></button>

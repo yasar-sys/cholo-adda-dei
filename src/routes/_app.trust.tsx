@@ -86,7 +86,7 @@ function TrustPage() {
               )}
             >
               <div className={cn("mb-2 grid size-9 place-items-center rounded-xl text-primary-foreground", tool.grad)}>
-                <tool.Icon className="size-4.5" />
+                <tool.Icon className="size-[18px]" />
               </div>
               <div className="font-display text-[13px] font-bold leading-tight text-foreground">{t(tool.titleKey)}</div>
               <div className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{t(tool.descKey)}</div>
