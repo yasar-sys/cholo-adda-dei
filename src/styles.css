@@ -142,3 +142,14 @@
   .bg-grad-gold   { background-image: var(--gradient-gold); }
   .bg-grad-trust  { background-image: var(--gradient-trust); }
 }
+
+@keyframes float-up {
+  0%   { transform: translateY(0) scale(0.8); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: translateY(-70vh) scale(1.4) rotate(12deg); opacity: 0; }
+}
+@layer utilities {
+  .animate-float-up { animation: float-up 2.6s ease-out forwards; }
+  .scroll-hide::-webkit-scrollbar { display: none; }
+  .scroll-hide { scrollbar-width: none; }
+}

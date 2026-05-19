@@ -10,6 +10,8 @@ import {
 
 import appCss from "../styles.css?url";
 import { I18nProvider } from "@/lib/i18n";
+import { RealtimeProvider } from "@/lib/realtime";
+import { FloatingReactions } from "@/components/LiveLayer";
 import { Toaster } from "sonner";
 
 function NotFoundComponent() {
@@ -96,8 +98,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        <Outlet />
-        <Toaster position="top-center" richColors />
+        <RealtimeProvider>
+          <Outlet />
+          <FloatingReactions />
+          <Toaster position="top-center" richColors />
+        </RealtimeProvider>
       </I18nProvider>
     </QueryClientProvider>
   );

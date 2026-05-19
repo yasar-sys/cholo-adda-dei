@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { StoriesBar } from "@/components/StoriesBar";
 import { PostCard } from "@/components/PostCard";
+import { LiveAddaRoom } from "@/components/LiveAddaRoom";
+import { ReactionDock } from "@/components/LiveLayer";
 import { samplePosts } from "@/lib/sample-data";
 import { useI18n } from "@/lib/i18n";
 import { Image as ImageIcon, MapPin, Smile, ShieldCheck } from "lucide-react";
@@ -49,10 +51,12 @@ function FeedPage() {
   return (
     <div className="space-y-0">
       <StoriesBar />
+      <LiveAddaRoom />
       <Composer />
       {samplePosts.map((p) => (
         <PostCard key={p.id} post={p} />
       ))}
+      <ReactionDock />
     </div>
   );
 }
