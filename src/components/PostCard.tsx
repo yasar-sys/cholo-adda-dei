@@ -1,6 +1,8 @@
 import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useRealtime } from "@/lib/realtime";
 import { TrustBadge } from "./TrustBadge";
+import { cn } from "@/lib/utils";
 import type { SamplePost } from "@/lib/sample-data";
 
 function fmt(n: number) {
@@ -10,9 +12,12 @@ function fmt(n: number) {
 
 export function PostCard({ post }: { post: SamplePost }) {
   const { lang } = useI18n();
+  const { likes, liked, toggleLike, sendReaction } = useRealtime();
   const author = lang === "bn" ? post.authorBn : post.authorEn;
   const time = lang === "bn" ? post.timeBn : post.timeEn;
   const content = lang === "bn" ? post.contentBn : post.contentEn;
+  const liveLikes = post.likes + (likes[post.id] ?? 0);
+  const isLiked = !!liked[post.id];
 
   return (
     <article className="border-b border-border bg-card">
@@ -61,11 +66,20 @@ export function PostCard({ post }: { post: SamplePost }) {
       )}
 
       <div className="flex items-center justify-between px-2 py-2 text-muted-foreground">
-        <button className="group flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium hover:bg-secondary">
-          <Heart className="size-4 transition group-hover:fill-destructive group-hover:stroke-destructive" />
-          <span>{fmt(post.likes)}</span>
+        <button
+          onClick={() => toggleLike(post.id)}
+          className={cn(
+            "group flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium transition hover:bg-secondary",
+            isLiked && "text-destructive"
+          )}
+        >
+          <Heart className={cn("size-4 transition", isLiked && "fill-destructive stroke-destructive", !isLiked && "group-hover:fill-destructive group-hover:stroke-destructive")} />
+          <span className="tabular-nums">{fmt(liveLikes)}</span>
         </button>
-        <button className="flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium hover:bg-secondary">
+        <button
+          onClick={() => sendReaction("💬", post.id)}
+          className="flex items-center gap-2 rounded-full px-3 py-2 text-xs font-medium hover:bg-secondary"
+        >
           <MessageCircle className="size-4" />
           <span>{fmt(post.comments)}</span>
         </button>
