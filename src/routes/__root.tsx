@@ -96,8 +96,11 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <I18nProvider>
-        <Outlet />
-        <Toaster position="top-center" richColors />
+        <RealtimeProvider>
+          <Outlet />
+          <FloatingReactions />
+          <Toaster position="top-center" richColors />
+        </RealtimeProvider>
       </I18nProvider>
     </QueryClientProvider>
   );
