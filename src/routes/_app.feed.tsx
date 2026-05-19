@@ -51,10 +51,12 @@ function FeedPage() {
   return (
     <div className="space-y-0">
       <StoriesBar />
+      <LiveAddaRoom />
       <Composer />
       {samplePosts.map((p) => (
         <PostCard key={p.id} post={p} />
       ))}
+      <ReactionDock />
     </div>
   );
 }
