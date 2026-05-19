@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import { Bell, Home, MessageCircle, PlayCircle, PlusSquare, Search, Shield, User, Sparkles, Globe2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { OnlinePill } from "@/components/LiveLayer";
 import { cn } from "@/lib/utils";
 
 function LangToggle() {
@@ -36,6 +37,7 @@ export function TopBar() {
           </div>
         </Link>
         <div className="ml-auto flex items-center gap-2">
+          <OnlinePill />
           <LangToggle />
           <button className="grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-secondary" aria-label="search">
             <Search className="size-4" />
