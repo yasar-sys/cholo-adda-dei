@@ -1,14 +1,239 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Search, Phone, Video, Plus } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Send, Search, LogOut, Loader2, MessageCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
-import { sampleChats } from "@/lib/sample-data";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/chat")({
   component: ChatPage,
 });
 
+interface Profile {
+  user_id: string;
+  display_name: string;
+  avatar_url: string | null;
+}
+interface Message {
+  id: string;
+  sender_id: string;
+  recipient_id: string;
+  content: string;
+  created_at: string;
+}
+
+function Initials({ name }: { name: string }) {
+  const ch = name.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <div className="grid size-12 shrink-0 place-items-center rounded-full bg-grad-indigo font-display text-base font-bold text-primary-foreground">
+      {ch}
+    </div>
+  );
+}
+
+function Avatar({ p, size = 48 }: { p: Profile; size?: number }) {
+  if (p.avatar_url) {
+    return <img src={p.avatar_url} alt="" width={size} height={size} className="shrink-0 rounded-full object-cover" style={{ width: size, height: size }} />;
+  }
+  const ch = p.display_name.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <div
+      className="grid shrink-0 place-items-center rounded-full bg-grad-indigo font-display font-bold text-primary-foreground"
+      style={{ width: size, height: size, fontSize: size * 0.4 }}
+    >{ch}</div>
+  );
+}
+
 function ChatPage() {
-  const { t, lang } = useI18n();
+  const { lang } = useI18n();
+  const { user, loading, signOut } = useAuth();
+
+  if (loading) {
+    return <div className="flex h-[60vh] items-center justify-center"><Loader2 className="size-6 animate-spin text-primary" /></div>;
+  }
+
+  if (!user) {
+    return (
+      <div className="flex min-h-[70vh] flex-col items-center justify-center px-6 text-center">
+        <div className="grid size-16 place-items-center rounded-3xl bg-grad-indigo shadow-glow">
+          <MessageCircle className="size-8 text-primary-foreground" />
+        </div>
+        <h2 className="mt-5 font-display text-xl font-bold text-foreground">
+          {lang === "bn" ? "চ্যাট শুরু করতে সাইন ইন করুন" : "Sign in to start chatting"}
+        </h2>
+        <p className="mt-2 max-w-xs text-sm text-muted-foreground">
+          {lang === "bn"
+            ? "আড্ডায় লগইন করা যেকোনো ব্যবহারকারীর সাথে বাস্তব সময়ে বার্তা পাঠান।"
+            : "Send real-time direct messages to any signed-in Adda user."}
+        </p>
+        <Link to="/login" className="mt-6 rounded-full bg-grad-indigo px-6 py-2.5 text-sm font-bold text-primary-foreground shadow-soft hover:opacity-95">
+          {lang === "bn" ? "সাইন ইন / সাইন আপ" : "Sign in / Sign up"}
+        </Link>
+      </div>
+    );
+  }
+
+  return <ChatInner userId={user.id} onSignOut={signOut} />;
+}
+
+function ChatInner({ userId, onSignOut }: { userId: string; onSignOut: () => Promise<void> }) {
+  const { lang } = useI18n();
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [me, setMe] = useState<Profile | null>(null);
+  const [active, setActive] = useState<Profile | null>(null);
+  const [search, setSearch] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [text, setText] = useState("");
+  const [sending, setSending] = useState(false);
+  const endRef = useRef<HTMLDivElement>(null);
+
+  // Load all profiles (excluding self)
+  useEffect(() => {
+    (async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("user_id, display_name, avatar_url")
+        .order("display_name");
+      if (error) { toast.error(error.message); return; }
+      setProfiles((data ?? []).filter((p) => p.user_id !== userId));
+      setMe((data ?? []).find((p) => p.user_id === userId) ?? null);
+    })();
+  }, [userId]);
+
+  // Subscribe to new messages where I'm sender or recipient
+  useEffect(() => {
+    const ch = supabase
+      .channel(`dm:${userId}`)
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `recipient_id=eq.${userId}` },
+        (payload) => setMessages((prev) => [...prev, payload.new as Message])
+      )
+      .on("postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages", filter: `sender_id=eq.${userId}` },
+        (payload) => setMessages((prev) => {
+          const m = payload.new as Message;
+          if (prev.some((x) => x.id === m.id)) return prev;
+          return [...prev, m];
+        })
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [userId]);
+
+  // Load conversation when active changes
+  useEffect(() => {
+    if (!active) { setMessages([]); return; }
+    (async () => {
+      const { data, error } = await supabase
+        .from("messages")
+        .select("*")
+        .or(
+          `and(sender_id.eq.${userId},recipient_id.eq.${active.user_id}),and(sender_id.eq.${active.user_id},recipient_id.eq.${userId})`,
+        )
+        .order("created_at", { ascending: true })
+        .limit(200);
+      if (error) { toast.error(error.message); return; }
+      setMessages((data ?? []) as Message[]);
+    })();
+  }, [active, userId]);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length, active]);
+
+  const conversation = useMemo(() => {
+    if (!active) return [];
+    return messages.filter(
+      (m) =>
+        (m.sender_id === userId && m.recipient_id === active.user_id) ||
+        (m.sender_id === active.user_id && m.recipient_id === userId),
+    );
+  }, [messages, active, userId]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return profiles;
+    return profiles.filter((p) => p.display_name.toLowerCase().includes(q));
+  }, [profiles, search]);
+
+  const send = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!active || !text.trim()) return;
+    setSending(true);
+    const content = text.trim();
+    setText("");
+    const { error } = await supabase
+      .from("messages")
+      .insert({ sender_id: userId, recipient_id: active.user_id, content });
+    if (error) { toast.error(error.message); setText(content); }
+    setSending(false);
+  };
+
+  // ============ Conversation view ============
+  if (active) {
+    return (
+      <div className="flex h-[calc(100vh-3.5rem-3.5rem)] flex-col bg-background">
+        <header className="flex items-center gap-3 border-b border-border bg-card px-3 py-2.5">
+          <button onClick={() => setActive(null)} className="grid size-9 place-items-center rounded-full hover:bg-secondary" aria-label="back">
+            <ArrowLeft className="size-4" />
+          </button>
+          <Avatar p={active} size={36} />
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-display text-sm font-bold text-foreground">{active.display_name}</div>
+            <div className="text-[11px] text-trust-high">
+              {lang === "bn" ? "🔒 এন্ড-টু-এন্ড সুরক্ষিত" : "🔒 End-to-end secured"}
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 space-y-2 overflow-y-auto px-3 py-4">
+          {conversation.length === 0 && (
+            <p className="mt-10 text-center text-xs text-muted-foreground">
+              {lang === "bn" ? "প্রথম বার্তাটি পাঠান 👋" : "Say hello 👋"}
+            </p>
+          )}
+          {conversation.map((m) => {
+            const mine = m.sender_id === userId;
+            return (
+              <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                <div
+                  className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-snug shadow-soft ${
+                    mine
+                      ? "rounded-br-md bg-grad-indigo text-primary-foreground"
+                      : "rounded-bl-md border border-border bg-card text-foreground"
+                  }`}
+                >
+                  {m.content}
+                  <div className={`mt-0.5 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                    {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={endRef} />
+        </div>
+
+        <form onSubmit={send} className="flex items-center gap-2 border-t border-border bg-card px-3 py-2">
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={lang === "bn" ? "বার্তা লিখুন…" : "Type a message…"}
+            maxLength={4000}
+            className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:border-accent focus:outline-none"
+          />
+          <button
+            type="submit" disabled={sending || !text.trim()}
+            className="grid size-10 shrink-0 place-items-center rounded-full bg-grad-indigo text-primary-foreground shadow-glow disabled:opacity-40"
+            aria-label="send"
+          >
+            {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  // ============ Inbox / people list ============
   return (
     <div>
       <div className="border-b border-border bg-card px-4 py-4">
@@ -16,62 +241,58 @@ function ChatPage() {
           <h1 className="font-display text-xl font-bold text-foreground">
             {lang === "bn" ? "মেসেজ" : "Messages"}
           </h1>
-          <button className="grid size-9 place-items-center rounded-full bg-grad-indigo text-primary-foreground shadow-soft" aria-label="new">
-            <Plus className="size-4" />
+          <button
+            onClick={() => onSignOut().then(() => toast.success(lang === "bn" ? "সাইন আউট হয়েছে" : "Signed out"))}
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+          >
+            <LogOut className="size-3.5" />
+            {lang === "bn" ? "সাইন আউট" : "Sign out"}
           </button>
         </div>
+        {me && (
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+            <Avatar p={me} size={24} />
+            <span>{lang === "bn" ? "আপনি" : "You"}: <span className="font-bold text-foreground">{me.display_name}</span></span>
+          </div>
+        )}
         <div className="mt-3 flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2">
           <Search className="size-4 text-muted-foreground" />
-          <input className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none" placeholder={t("chat_search")} />
-        </div>
-
-        <div className="mt-4">
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{t("online_now")}</div>
-          <div className="scroll-hide flex gap-3 overflow-x-auto">
-            {sampleChats.filter((c) => c.online).map((c) => (
-              <button key={c.id} className="flex w-14 shrink-0 flex-col items-center gap-1">
-                <div className="relative">
-                  <img src={c.avatar} alt="" width={48} height={48} loading="lazy" className="size-12 rounded-full object-cover" />
-                  <span className="absolute bottom-0 right-0 size-3 rounded-full bg-trust-high ring-2 ring-card" />
-                </div>
-                <span className="truncate text-[10px] font-medium">{lang === "bn" ? c.nameBn : c.nameEn}</span>
-              </button>
-            ))}
-          </div>
+          <input
+            value={search} onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
+            placeholder={lang === "bn" ? "ব্যবহারকারী খুঁজুন…" : "Find a user…"}
+          />
         </div>
       </div>
 
       <ul className="divide-y divide-border bg-card">
-        {sampleChats.map((c) => (
-          <li key={c.id} className="flex items-center gap-3 px-4 py-3 active:bg-secondary">
-            <div className="relative">
-              <img src={c.avatar} alt="" width={52} height={52} loading="lazy" className="size-[52px] rounded-full object-cover" />
-              {c.online && <span className="absolute bottom-0 right-0 size-3 rounded-full bg-trust-high ring-2 ring-card" />}
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate font-display text-sm font-bold text-foreground">{lang === "bn" ? c.nameBn : c.nameEn}</span>
-                <span className="shrink-0 text-[11px] text-muted-foreground">{c.time}</span>
+        {filtered.length === 0 && (
+          <li className="px-4 py-10 text-center text-sm text-muted-foreground">
+            {lang === "bn"
+              ? "এখনো অন্য কেউ যোগ দেয়নি। কাউকে আড্ডায় আমন্ত্রণ জানান!"
+              : "Nobody else has signed up yet. Invite a friend to Adda!"}
+          </li>
+        )}
+        {filtered.map((p) => (
+          <li key={p.user_id}>
+            <button
+              onClick={() => setActive(p)}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-secondary"
+            >
+              <Avatar p={p} />
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-display text-sm font-bold text-foreground">{p.display_name}</div>
+                <div className="truncate text-xs text-muted-foreground">
+                  {lang === "bn" ? "চ্যাট শুরু করতে ট্যাপ করুন" : "Tap to start chatting"}
+                </div>
               </div>
-              <div className="flex items-center justify-between gap-2">
-                <span className="truncate text-xs text-muted-foreground">{lang === "bn" ? c.lastBn : c.lastEn}</span>
-                {c.unread > 0 && (
-                  <span className="grid size-5 shrink-0 place-items-center rounded-full bg-grad-indigo text-[10px] font-bold text-primary-foreground">{c.unread}</span>
-                )}
-              </div>
-            </div>
-            <button className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-secondary" aria-label="call">
-              <Phone className="size-4" />
-            </button>
-            <button className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-secondary" aria-label="video">
-              <Video className="size-4" />
             </button>
           </li>
         ))}
       </ul>
 
       <p className="px-4 py-6 text-center text-[11px] text-muted-foreground">
-        {lang === "bn" ? "🔒 এন্ড-টু-এন্ড এনক্রিপ্টেড · AI স্ক্যাম সতর্কতা চালু" : "🔒 End-to-end encrypted · AI scam alerts on"}
+        {lang === "bn" ? "🔒 বার্তাগুলো শুধু আপনি ও প্রাপক দেখতে পারবেন" : "🔒 Messages are visible only to you and the recipient"}
       </p>
     </div>
   );
