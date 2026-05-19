@@ -1,10 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Send, Search, LogOut, Loader2, MessageCircle } from "lucide-react";
+import { ArrowLeft, Send, Search, LogOut, Loader2, MessageCircle, Smile, Phone, Video } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "sonner";
+import CallModal from "@/components/CallModal";
 
 export const Route = createFileRoute("/_app/chat")({
   component: ChatPage,
@@ -77,6 +78,13 @@ function ChatPage() {
   return <ChatInner userId={user.id} onSignOut={signOut} />;
 }
 
+const EMOJI_GROUPS: Record<string, string[]> = {
+  smileys: ["😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇", "🙂", "🙃", "😉", "😍", "🥰", "😘", "😜", "😎", "🥳", "🤔", "🥺", "😭", "😡"],
+  gestures: ["👋", "👌", "✌️", "🤞", "🤟", "👍", "👎", "👊", "👏", "🙌", "🙏"],
+  hearts: ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💔", "❣️", "💕", "💞", "💓", "💗", "💖", "💘"],
+  fun: ["🔥", "✨", "🎉", "🎈", "🌟", "⭐", "🌈", "⚡", "💥", "💯", "🚀", "🛸", "👑", "💡", "🍀"]
+};
+
 function ChatInner({ userId, onSignOut }: { userId: string; onSignOut: () => Promise<void> }) {
   const { lang } = useI18n();
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -87,6 +95,57 @@ function ChatInner({ userId, onSignOut }: { userId: string; onSignOut: () => Pro
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+
+  // Custom Emoji Picker states
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [emojiTab, setEmojiTab] = useState<keyof typeof EMOJI_GROUPS>("smileys");
+  const emojiRef = useRef<HTMLDivElement>(null);
+
+  // Calling States
+  const [callActive, setCallActive] = useState(false);
+  const [callRole, setCallRole] = useState<"caller" | "receiver">("caller");
+  const [callType, setCallType] = useState<"audio" | "video">("video");
+  const [callPeer, setCallPeer] = useState<Profile | null>(null);
+  const [callRoomId, setCallRoomId] = useState<string>("");
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (emojiRef.current && !emojiRef.current.contains(event.target as Node)) {
+        setShowEmoji(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Listen to calling signaling channel
+  useEffect(() => {
+    const ch = supabase
+      .channel(`calls_${userId}`)
+      .on("broadcast", { event: "incoming-call" }, ({ payload }) => {
+        setCallRole("receiver");
+        setCallType(payload.callType);
+        setCallPeer(payload.caller);
+        setCallRoomId(payload.callRoomId);
+        setCallActive(true);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ch);
+    };
+  }, [userId]);
+
+  const startCall = (type: "audio" | "video") => {
+    if (!active) return;
+    const room = [userId, active.user_id].sort().join("-");
+    setCallRole("caller");
+    setCallType(type);
+    setCallPeer(active);
+    setCallRoomId(room);
+    setCallActive(true);
+  };
 
   // Load all profiles (excluding self)
   useEffect(() => {
@@ -168,132 +227,221 @@ function ChatInner({ userId, onSignOut }: { userId: string; onSignOut: () => Pro
     setSending(false);
   };
 
-  // ============ Conversation view ============
-  if (active) {
-    return (
-      <div className="flex h-[calc(100vh-3.5rem-3.5rem)] flex-col bg-background">
-        <header className="flex items-center gap-3 border-b border-border bg-card px-3 py-2.5">
-          <button onClick={() => setActive(null)} className="grid size-9 place-items-center rounded-full hover:bg-secondary" aria-label="back">
-            <ArrowLeft className="size-4" />
-          </button>
-          <Avatar p={active} size={36} />
-          <div className="min-w-0 flex-1">
-            <div className="truncate font-display text-sm font-bold text-foreground">{active.display_name}</div>
-            <div className="text-[11px] text-trust-high">
-              {lang === "bn" ? "🔒 এন্ড-টু-এন্ড সুরক্ষিত" : "🔒 End-to-end secured"}
+  return (
+    <>
+      {active ? (
+        <div className="flex h-[calc(100vh-3.5rem-3.5rem)] flex-col bg-background">
+          <header className="flex items-center gap-3 border-b border-border bg-card px-3 py-2.5">
+            <button onClick={() => setActive(null)} className="grid size-9 place-items-center rounded-full hover:bg-secondary" aria-label="back">
+              <ArrowLeft className="size-4" />
+            </button>
+            <Avatar p={active} size={36} />
+            <div className="min-w-0 flex-1">
+              <div className="truncate font-display text-sm font-bold text-foreground">{active.display_name}</div>
+              <div className="text-[11px] text-trust-high">
+                {lang === "bn" ? "🔒 এন্ড-টু-এন্ড সুরক্ষিত" : "🔒 End-to-end secured"}
+              </div>
             </div>
-          </div>
-        </header>
+            {/* Call Action Buttons */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => startCall("audio")}
+                className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition"
+                aria-label="Audio Call"
+              >
+                <Phone className="size-4" />
+              </button>
+              <button
+                onClick={() => startCall("video")}
+                className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition"
+                aria-label="Video Call"
+              >
+                <Video className="size-4" />
+              </button>
+            </div>
+          </header>
 
-        <div className="flex-1 space-y-2 overflow-y-auto px-3 py-4">
-          {conversation.length === 0 && (
-            <p className="mt-10 text-center text-xs text-muted-foreground">
-              {lang === "bn" ? "প্রথম বার্তাটি পাঠান 👋" : "Say hello 👋"}
-            </p>
-          )}
-          {conversation.map((m) => {
-            const mine = m.sender_id === userId;
-            return (
-              <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-snug shadow-soft ${
-                    mine
-                      ? "rounded-br-md bg-grad-indigo text-primary-foreground"
-                      : "rounded-bl-md border border-border bg-card text-foreground"
-                  }`}
-                >
-                  {m.content}
-                  <div className={`mt-0.5 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                    {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          <div className="flex-1 space-y-2 overflow-y-auto px-3 py-4">
+            {conversation.length === 0 && (
+              <p className="mt-10 text-center text-xs text-muted-foreground">
+                {lang === "bn" ? "প্রথম বার্তাটি পাঠান 👋" : "Say hello 👋"}
+              </p>
+            )}
+            {conversation.map((m) => {
+              const mine = m.sender_id === userId;
+              return (
+                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                  <div
+                    className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-snug shadow-soft ${
+                      mine
+                        ? "rounded-br-md bg-grad-indigo text-primary-foreground"
+                        : "rounded-bl-md border border-border bg-card text-foreground"
+                    }`}
+                  >
+                    {m.content}
+                    <div className={`mt-0.5 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                      {new Date(m.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    </div>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-          <div ref={endRef} />
-        </div>
-
-        <form onSubmit={send} className="flex items-center gap-2 border-t border-border bg-card px-3 py-2">
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            placeholder={lang === "bn" ? "বার্তা লিখুন…" : "Type a message…"}
-            maxLength={4000}
-            className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:border-accent focus:outline-none"
-          />
-          <button
-            type="submit" disabled={sending || !text.trim()}
-            className="grid size-10 shrink-0 place-items-center rounded-full bg-grad-indigo text-primary-foreground shadow-glow disabled:opacity-40"
-            aria-label="send"
-          >
-            {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-          </button>
-        </form>
-      </div>
-    );
-  }
-
-  // ============ Inbox / people list ============
-  return (
-    <div>
-      <div className="border-b border-border bg-card px-4 py-4">
-        <div className="flex items-center justify-between">
-          <h1 className="font-display text-xl font-bold text-foreground">
-            {lang === "bn" ? "মেসেজ" : "Messages"}
-          </h1>
-          <button
-            onClick={() => onSignOut().then(() => toast.success(lang === "bn" ? "সাইন আউট হয়েছে" : "Signed out"))}
-            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
-          >
-            <LogOut className="size-3.5" />
-            {lang === "bn" ? "সাইন আউট" : "Sign out"}
-          </button>
-        </div>
-        {me && (
-          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <Avatar p={me} size={24} />
-            <span>{lang === "bn" ? "আপনি" : "You"}: <span className="font-bold text-foreground">{me.display_name}</span></span>
+              );
+            })}
+            <div ref={endRef} />
           </div>
-        )}
-        <div className="mt-3 flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2">
-          <Search className="size-4 text-muted-foreground" />
-          <input
-            value={search} onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
-            placeholder={lang === "bn" ? "ব্যবহারকারী খুঁজুন…" : "Find a user…"}
-          />
-        </div>
-      </div>
 
-      <ul className="divide-y divide-border bg-card">
-        {filtered.length === 0 && (
-          <li className="px-4 py-10 text-center text-sm text-muted-foreground">
-            {lang === "bn"
-              ? "এখনো অন্য কেউ যোগ দেয়নি। কাউকে আড্ডায় আমন্ত্রণ জানান!"
-              : "Nobody else has signed up yet. Invite a friend to Adda!"}
-          </li>
-        )}
-        {filtered.map((p) => (
-          <li key={p.user_id}>
-            <button
-              onClick={() => setActive(p)}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-secondary"
-            >
-              <Avatar p={p} />
-              <div className="min-w-0 flex-1">
-                <div className="truncate font-display text-sm font-bold text-foreground">{p.display_name}</div>
-                <div className="truncate text-xs text-muted-foreground">
-                  {lang === "bn" ? "চ্যাট শুরু করতে ট্যাপ করুন" : "Tap to start chatting"}
+          <form onSubmit={send} className="relative flex items-center gap-2 border-t border-border bg-card px-3 py-2">
+            {/* Custom Emoji Picker Popover */}
+            {showEmoji && (
+              <div
+                ref={emojiRef}
+                className="absolute bottom-14 left-3 z-50 flex h-48 w-64 flex-col rounded-2xl border border-border bg-card p-2 shadow-glow animate-in fade-in slide-in-from-bottom-2 duration-200"
+              >
+                <div className="flex gap-2 border-b border-border pb-1 mb-1.5 text-[10px] text-muted-foreground font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setEmojiTab("smileys")}
+                    className={`px-2 py-0.5 rounded-full transition ${emojiTab === "smileys" ? "bg-secondary text-foreground" : ""}`}
+                  >
+                    😀
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEmojiTab("gestures")}
+                    className={`px-2 py-0.5 rounded-full transition ${emojiTab === "gestures" ? "bg-secondary text-foreground" : ""}`}
+                  >
+                    👍
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEmojiTab("hearts")}
+                    className={`px-2 py-0.5 rounded-full transition ${emojiTab === "hearts" ? "bg-secondary text-foreground" : ""}`}
+                  >
+                    ❤️
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEmojiTab("fun")}
+                    className={`px-2 py-0.5 rounded-full transition ${emojiTab === "fun" ? "bg-secondary text-foreground" : ""}`}
+                  >
+                    🔥
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto grid grid-cols-6 gap-1.5 p-1 content-start justify-items-center">
+                  {EMOJI_GROUPS[emojiTab].map((emo) => (
+                    <button
+                      key={emo}
+                      type="button"
+                      onClick={() => setText((prev) => prev + emo)}
+                      className="text-lg hover:scale-125 active:scale-95 transition"
+                    >
+                      {emo}
+                    </button>
+                  ))}
                 </div>
               </div>
-            </button>
-          </li>
-        ))}
-      </ul>
+            )}
 
-      <p className="px-4 py-6 text-center text-[11px] text-muted-foreground">
-        {lang === "bn" ? "🔒 বার্তাগুলো শুধু আপনি ও প্রাপক দেখতে পারবেন" : "🔒 Messages are visible only to you and the recipient"}
-      </p>
-    </div>
+            <button
+              type="button"
+              onClick={() => setShowEmoji(!showEmoji)}
+              className={`grid size-10 shrink-0 place-items-center rounded-full border border-border bg-background transition hover:bg-secondary ${
+                showEmoji ? "text-accent border-accent" : "text-muted-foreground"
+              }`}
+              aria-label="Toggle Emojis"
+            >
+              <Smile className="size-5" />
+            </button>
+
+            <input
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder={lang === "bn" ? "বার্তা লিখুন…" : "Type a message…"}
+              maxLength={4000}
+              className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm placeholder:text-muted-foreground focus:border-accent focus:outline-none"
+            />
+            <button
+              type="submit" disabled={sending || !text.trim()}
+              className="grid size-10 shrink-0 place-items-center rounded-full bg-grad-indigo text-primary-foreground shadow-glow disabled:opacity-40"
+              aria-label="send"
+            >
+              {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            </button>
+          </form>
+        </div>
+      ) : (
+        <div>
+          <div className="border-b border-border bg-card px-4 py-4">
+            <div className="flex items-center justify-between">
+              <h1 className="font-display text-xl font-bold text-foreground">
+                {lang === "bn" ? "মেসেজ" : "Messages"}
+              </h1>
+              <button
+                onClick={() => onSignOut().then(() => toast.success(lang === "bn" ? "সাইন আউট হয়েছে" : "Signed out"))}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="size-3.5" />
+                {lang === "bn" ? "সাইন আউট" : "Sign out"}
+              </button>
+            </div>
+            {me && (
+              <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <Avatar p={me} size={24} />
+                <span>{lang === "bn" ? "আপনি" : "You"}: <span className="font-bold text-foreground">{me.display_name}</span></span>
+              </div>
+            )}
+            <div className="mt-3 flex items-center gap-2 rounded-full border border-border bg-background px-3 py-2">
+              <Search className="size-4 text-muted-foreground" />
+              <input
+                value={search} onChange={(e) => setSearch(e.target.value)}
+                className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground focus:outline-none"
+                placeholder={lang === "bn" ? "ব্যবহারকারী খুঁজুন…" : "Find a user…"}
+              />
+            </div>
+          </div>
+
+          <ul className="divide-y divide-border bg-card">
+            {filtered.length === 0 && (
+              <li className="px-4 py-10 text-center text-sm text-muted-foreground">
+                {lang === "bn"
+                  ? "এখনো অন্য কেউ যোগ দেয়নি। কাউকে আড্ডায় আমন্ত্রণ জানান!"
+                  : "Nobody else has signed up yet. Invite a friend to Adda!"}
+              </li>
+            )}
+            {filtered.map((p) => (
+              <li key={p.user_id}>
+                <button
+                  onClick={() => setActive(p)}
+                  className="flex w-full items-center gap-3 px-4 py-3 text-left transition active:bg-secondary"
+                >
+                  <Avatar p={p} />
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate font-display text-sm font-bold text-foreground">{p.display_name}</div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {lang === "bn" ? "চ্যাট শুরু করতে ট্যাপ করুন" : "Tap to start chatting"}
+                    </div>
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+
+          <p className="px-4 py-6 text-center text-[11px] text-muted-foreground">
+            {lang === "bn" ? "🔒 বার্তাগুলো শুধু আপনি ও প্রাপক দেখতে পারবেন" : "🔒 Messages are visible only to you and the recipient"}
+          </p>
+        </div>
+      )}
+
+      {callActive && callPeer && (
+        <CallModal
+          isOpen={callActive}
+          role={callRole}
+          callType={callType}
+          peer={callPeer}
+          myProfile={me}
+          callRoomId={callRoomId}
+          onClose={() => setCallActive(false)}
+        />
+      )}
+    </>
   );
 }

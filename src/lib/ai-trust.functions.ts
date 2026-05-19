@@ -40,9 +40,9 @@ const systemPrompts: Record<string, (lang: "bn" | "en") => string> = {
 export const analyzeWithAI = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => InputSchema.parse(input))
   .handler(async ({ data }): Promise<AIResult> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || process.env.AI_API_KEY;
     if (!apiKey) {
-      throw new Error("AI gateway not configured. Please enable Lovable AI.");
+      throw new Error("AI gateway not configured. Please set GEMINI_API_KEY or OPENAI_API_KEY.");
     }
 
     const sys = systemPrompts[data.kind](data.lang);
@@ -69,14 +69,21 @@ export const analyzeWithAI = createServerFn({ method: "POST" })
       additionalProperties: false,
     } as const;
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Use Gemini's OpenAI-compatible endpoint or standard OpenAI endpoint
+    const url = process.env.GEMINI_API_KEY
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+      : "https://api.openai.com/v1/chat/completions";
+
+    const modelName = process.env.GEMINI_API_KEY ? "gemini-2.5-flash" : "gpt-4o-mini";
+
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: modelName,
         messages: [
           { role: "system", content: sys + (data.lang === "bn" ? " সর্বদা JSON-এ উত্তর দিন।" : " Always answer in JSON.") },
           { role: "user", content: data.text },
@@ -96,7 +103,6 @@ export const analyzeWithAI = createServerFn({ method: "POST" })
     });
 
     if (res.status === 429) throw new Error("Rate limit reached. Please try again in a moment.");
-    if (res.status === 402) throw new Error("AI credits exhausted. Add credits to continue.");
     if (!res.ok) {
       const t = await res.text();
       throw new Error(`AI error ${res.status}: ${t.slice(0, 200)}`);
