@@ -198,6 +198,12 @@
   .bg-grad-indigo { background-image: var(--gradient-indigo); }
   .bg-grad-gold   { background-image: var(--gradient-gold); }
   .bg-grad-trust  { background-image: var(--gradient-trust); }
+  .chat-bubble-out { background-image: var(--chat-gradient, var(--gradient-indigo)); }
+  .chat-theme-dot { width: 1.25rem; height: 1.25rem; border-radius: 999px; border: 1px solid var(--border); background-image: var(--chat-gradient, var(--gradient-indigo)); }
+  .chat-theme-jamdani { --chat-gradient: linear-gradient(135deg, oklch(0.28 0.08 255), oklch(0.78 0.12 75)); }
+  .chat-theme-padma { --chat-gradient: linear-gradient(135deg, oklch(0.52 0.18 350), oklch(0.72 0.16 28)); }
+  .chat-theme-cyber { --chat-gradient: linear-gradient(135deg, oklch(0.52 0.2 265), oklch(0.78 0.18 160)); }
+  .chat-theme-night { --chat-gradient: linear-gradient(135deg, oklch(0.2 0.06 260), oklch(0.58 0.14 285)); }
 }
 
 @keyframes float-up {
