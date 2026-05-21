@@ -205,8 +205,22 @@
   15%  { opacity: 1; }
   100% { transform: translateY(-70vh) scale(1.4) rotate(12deg); opacity: 0; }
 }
+
+@keyframes splash-logo {
+  0% { transform: scale(0.82); opacity: 0; }
+  45% { transform: scale(1.04); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes splash-out {
+  0%, 72% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; pointer-events: none; }
+}
+
 @layer utilities {
   .animate-float-up { animation: float-up 2.6s ease-out forwards; }
+  .animate-splash-logo { animation: splash-logo 900ms cubic-bezier(.2,.8,.2,1) both; }
+  .animate-splash-out { animation: splash-out 1800ms ease forwards; }
   .scroll-hide::-webkit-scrollbar { display: none; }
   .scroll-hide { scrollbar-width: none; }
 }
