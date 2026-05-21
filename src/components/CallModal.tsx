@@ -124,9 +124,12 @@ export default function CallModal({
           if (role === "caller") {
             // Signal to peer that we are calling them
             // We also send a global notification so their app picks it up
-            supabase.channel(`calls_${peer.user_id}`).subscribe(async (s) => {
+            const notifyChannel = supabase.channel(`calls_${peer.user_id}`, {
+              config: { broadcast: { self: false } },
+            });
+            notifyChannel.subscribe(async (s) => {
               if (s === "SUBSCRIBED") {
-                await supabase.channel(`calls_${peer.user_id}`).send({
+                await notifyChannel.send({
                   type: "broadcast",
                   event: "incoming-call",
                   payload: {
@@ -135,6 +138,7 @@ export default function CallModal({
                     callRoomId,
                   },
                 });
+                window.setTimeout(() => supabase.removeChannel(notifyChannel), 1200);
               }
             });
           }

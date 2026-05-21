@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Send, Search, LogOut, Loader2, MessageCircle, Smile, Phone, Video } from "lucide-react";
+import { ArrowLeft, Send, Search, LogOut, Loader2, MessageCircle, Smile, Phone, Video, Palette, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
@@ -85,6 +85,15 @@ const EMOJI_GROUPS: Record<string, string[]> = {
   fun: ["🔥", "✨", "🎉", "🎈", "🌟", "⭐", "🌈", "⚡", "💥", "💯", "🚀", "🛸", "👑", "💡", "🍀"]
 };
 
+const CHAT_THEMES = {
+  jamdani: { bn: "জামদানি", en: "Jamdani", emoji: "🧵" },
+  padma: { bn: "পদ্মা", en: "Padma", emoji: "🌸" },
+  cyber: { bn: "সাইবার", en: "Cyber", emoji: "⚡" },
+  night: { bn: "নাইট", en: "Night", emoji: "🌙" },
+} as const;
+
+type ChatTheme = keyof typeof CHAT_THEMES;
+
 function ChatInner({ userId, onSignOut }: { userId: string; onSignOut: () => Promise<void> }) {
   const { lang } = useI18n();
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -100,6 +109,8 @@ function ChatInner({ userId, onSignOut }: { userId: string; onSignOut: () => Pro
   const [showEmoji, setShowEmoji] = useState(false);
   const [emojiTab, setEmojiTab] = useState<keyof typeof EMOJI_GROUPS>("smileys");
   const emojiRef = useRef<HTMLDivElement>(null);
+  const [chatTheme, setChatTheme] = useState<ChatTheme>("jamdani");
+  const [showThemes, setShowThemes] = useState(false);
 
   // Calling States
   const [callActive, setCallActive] = useState(false);
@@ -199,6 +210,21 @@ function ChatInner({ userId, onSignOut }: { userId: string; onSignOut: () => Pro
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length, active]);
 
+  useEffect(() => {
+    if (typeof window === "undefined" || !active) return;
+    const key = `adda-chat-theme:${active.user_id}`;
+    const saved = localStorage.getItem(key) as ChatTheme | null;
+    setChatTheme(saved && saved in CHAT_THEMES ? saved : "jamdani");
+  }, [active]);
+
+  const chooseChatTheme = (theme: ChatTheme) => {
+    setChatTheme(theme);
+    if (typeof window !== "undefined" && active) {
+      localStorage.setItem(`adda-chat-theme:${active.user_id}`, theme);
+    }
+    setShowThemes(false);
+  };
+
   const conversation = useMemo(() => {
     if (!active) return [];
     return messages.filter(
@@ -230,7 +256,7 @@ function ChatInner({ userId, onSignOut }: { userId: string; onSignOut: () => Pro
   return (
     <>
       {active ? (
-        <div className="flex h-[calc(100vh-3.5rem-3.5rem)] flex-col bg-background">
+        <div className={`chat-theme-${chatTheme} flex h-[calc(100vh-3.5rem-3.5rem)] flex-col bg-background`}>
           <header className="flex items-center gap-3 border-b border-border bg-card px-3 py-2.5">
             <button onClick={() => setActive(null)} className="grid size-9 place-items-center rounded-full hover:bg-secondary" aria-label="back">
               <ArrowLeft className="size-4" />
@@ -244,6 +270,31 @@ function ChatInner({ userId, onSignOut }: { userId: string; onSignOut: () => Pro
             </div>
             {/* Call Action Buttons */}
             <div className="flex items-center gap-1">
+              <div className="relative">
+                <button
+                  onClick={() => setShowThemes((v) => !v)}
+                  className="grid size-9 place-items-center rounded-full text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+                  aria-label="Chat theme"
+                >
+                  <Palette className="size-4" />
+                </button>
+                {showThemes && (
+                  <div className="absolute right-0 top-11 z-50 w-44 rounded-2xl border border-border bg-popover p-2 shadow-glow">
+                    {(Object.keys(CHAT_THEMES) as ChatTheme[]).map((key) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => chooseChatTheme(key)}
+                        className={`flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-xs font-semibold transition hover:bg-secondary ${chatTheme === key ? "bg-secondary text-primary" : "text-foreground"}`}
+                      >
+                        <span className={`chat-theme-dot chat-theme-${key}`} />
+                        <span className="flex-1">{CHAT_THEMES[key].emoji} {lang === "bn" ? CHAT_THEMES[key].bn : CHAT_THEMES[key].en}</span>
+                        {chatTheme === key && <Check className="size-3.5" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => startCall("audio")}
                 className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition"
@@ -274,7 +325,7 @@ function ChatInner({ userId, onSignOut }: { userId: string; onSignOut: () => Pro
                   <div
                     className={`max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-snug shadow-soft ${
                       mine
-                        ? "rounded-br-md bg-grad-indigo text-primary-foreground"
+                        ? "chat-bubble-out rounded-br-md text-primary-foreground"
                         : "rounded-bl-md border border-border bg-card text-foreground"
                     }`}
                   >

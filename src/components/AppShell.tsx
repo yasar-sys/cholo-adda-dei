@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
-import { Bell, Home, MessageCircle, PlayCircle, PlusSquare, Search, Shield, User, Sparkles, Globe2 } from "lucide-react";
+import { Bell, Home, MessageCircle, PlayCircle, PlusSquare, Search, Shield, User, Globe2, Palette } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { useTheme, type AppTheme } from "@/lib/theme";
 import { OnlinePill } from "@/components/LiveLayer";
 import { cn } from "@/lib/utils";
 
@@ -18,12 +19,44 @@ function LangToggle() {
   );
 }
 
+const themeSwatches: Record<AppTheme, string> = {
+  jamdani: "linear-gradient(135deg, var(--indigo-deep), var(--gold))",
+  midnight: "linear-gradient(135deg, oklch(0.16 0.06 260), oklch(0.63 0.18 270))",
+  lotus: "linear-gradient(135deg, oklch(0.95 0.05 20), oklch(0.68 0.18 350))",
+  meghna: "linear-gradient(135deg, oklch(0.92 0.06 210), oklch(0.55 0.13 205))",
+};
+
+function ThemeMenu() {
+  const { lang } = useI18n();
+  const { theme, setTheme, themeLabels } = useTheme();
+  return (
+    <div className="group relative">
+      <button className="grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-secondary" aria-label="theme options">
+        <Palette className="size-4" />
+      </button>
+      <div className="invisible absolute right-0 top-11 z-50 w-44 rounded-2xl border border-border bg-popover p-2 opacity-0 shadow-glow transition group-hover:visible group-hover:opacity-100 group-focus-within:visible group-focus-within:opacity-100">
+        {(Object.keys(themeLabels) as AppTheme[]).map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTheme(key)}
+            className={cn("flex w-full items-center gap-2 rounded-xl px-2 py-2 text-left text-xs font-semibold transition hover:bg-secondary", theme === key && "bg-secondary text-primary")}
+          >
+            <span className="size-5 rounded-full border border-border" style={{ background: themeSwatches[key] }} />
+            <span>{themeLabels[key].emoji} {lang === "bn" ? themeLabels[key].bn : themeLabels[key].en}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function TopBar() {
   const { t, lang } = useI18n();
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-2xl items-center gap-3 px-4">
-        <Link to="/" className="flex items-center gap-2">
+        <Link to="/feed" className="flex items-center gap-2">
           <div className="grid size-9 place-items-center overflow-hidden rounded-xl bg-grad-indigo shadow-soft">
             <img src="/logo.png" alt="Adda Logo" className="h-full w-full object-cover" />
           </div>
@@ -39,6 +72,7 @@ export function TopBar() {
         <div className="ml-auto flex items-center gap-2">
           <OnlinePill />
           <LangToggle />
+          <ThemeMenu />
           <button className="grid size-9 place-items-center rounded-full border border-border bg-card text-foreground hover:bg-secondary" aria-label="search">
             <Search className="size-4" />
           </button>
@@ -53,7 +87,7 @@ export function TopBar() {
 }
 
 const navItems = [
-  { to: "/" as const,        icon: Home,          key: "nav_feed" as const },
+  { to: "/feed" as const,    icon: Home,          key: "nav_feed" as const },
   { to: "/reels" as const,   icon: PlayCircle,    key: "nav_reels" as const },
   { to: "/compose" as const, icon: PlusSquare,    key: "nav_post" as const, center: true },
   { to: "/chat" as const,    icon: MessageCircle, key: "nav_chat" as const },
