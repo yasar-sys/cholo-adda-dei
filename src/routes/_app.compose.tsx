@@ -5,6 +5,7 @@ import { Image, MapPin, Smile, ShieldCheck, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { analyzeWithAI } from "@/lib/ai-trust.functions";
 import { toast } from "sonner";
+import { usePosts } from "@/lib/posts";
 
 export const Route = createFileRoute("/_app/compose")({
   component: ComposePage,
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/_app/compose")({
 
 function ComposePage() {
   const { t, lang } = useI18n();
+  const { addPost } = usePosts();
   const nav = useNavigate();
   const [text, setText] = useState("");
   const [verifying, setVerifying] = useState(false);
