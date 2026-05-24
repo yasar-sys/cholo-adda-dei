@@ -41,6 +41,9 @@ export function PostCard({ post }: { post: SamplePost }) {
           </div>
         </div>
         <SafetyMenu postId={post.id} shareText={content} />
+      </header>
+
+
 
 
       <p className="px-4 pt-3 text-[15px] leading-relaxed text-foreground">{content}</p>
