@@ -1,4 +1,5 @@
-import { Heart, MessageCircle, Share2, Bookmark, MoreHorizontal } from "lucide-react";
+import { Heart, MessageCircle, Share2, Bookmark } from "lucide-react";
+import { SafetyMenu } from "./SafetyMenu";
 import { useI18n } from "@/lib/i18n";
 import { useRealtime } from "@/lib/realtime";
 import { TrustBadge } from "./TrustBadge";
@@ -39,10 +40,11 @@ export function PostCard({ post }: { post: SamplePost }) {
             <span className="font-en">{post.handle}</span> · <span>{time}</span>
           </div>
         </div>
-        <button className="grid size-8 place-items-center rounded-full text-muted-foreground hover:bg-secondary" aria-label="more">
-          <MoreHorizontal className="size-4" />
-        </button>
+        <SafetyMenu postId={post.id} shareText={content} />
       </header>
+
+
+
 
       <p className="px-4 pt-3 text-[15px] leading-relaxed text-foreground">{content}</p>
 

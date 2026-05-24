@@ -13,6 +13,7 @@ import { I18nProvider } from "@/lib/i18n";
 import { AuthProvider } from "@/lib/auth";
 import { ThemeProvider } from "@/lib/theme";
 import { RealtimeProvider } from "@/lib/realtime";
+import { PostsProvider } from "@/lib/posts";
 import { FloatingReactions } from "@/components/LiveLayer";
 import { SplashScreen } from "@/components/SplashScreen";
 import { Toaster } from "sonner";
@@ -68,14 +69,23 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:description", content: "Adda — a Bangla-first social network with built-in AI fact-checking, deepfake detection and trust scoring." },
       { property: "og:image", content: "/banner.jpg" },
       { name: "twitter:image", content: "/banner.jpg" },
+      { name: "theme-color", content: "#1e1b4b" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "আড্ডা" },
+      { name: "mobile-web-app-capable", content: "yes" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/logo.png" },
+      { rel: "icon", href: "/logo.png", type: "image/png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" },
     ],
   }),
+
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
@@ -104,12 +114,15 @@ function RootComponent() {
         <ThemeProvider>
           <AuthProvider>
             <RealtimeProvider>
-              <SplashScreen />
-              <Outlet />
-              <FloatingReactions />
-              <Toaster position="top-center" richColors />
+              <PostsProvider>
+                <SplashScreen />
+                <Outlet />
+                <FloatingReactions />
+                <Toaster position="top-center" richColors />
+              </PostsProvider>
             </RealtimeProvider>
           </AuthProvider>
+
         </ThemeProvider>
       </I18nProvider>
     </QueryClientProvider>

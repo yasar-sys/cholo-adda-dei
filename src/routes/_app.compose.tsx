@@ -5,6 +5,7 @@ import { Image, MapPin, Smile, ShieldCheck, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { analyzeWithAI } from "@/lib/ai-trust.functions";
 import { toast } from "sonner";
+import { usePosts } from "@/lib/posts";
 
 export const Route = createFileRoute("/_app/compose")({
   component: ComposePage,
@@ -12,6 +13,7 @@ export const Route = createFileRoute("/_app/compose")({
 
 function ComposePage() {
   const { t, lang } = useI18n();
+  const { addPost } = usePosts();
   const nav = useNavigate();
   const [text, setText] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -83,11 +85,17 @@ function ComposePage() {
         )}
 
         <button
-          onClick={() => { toast.success(lang === "bn" ? "পোস্ট প্রকাশিত!" : "Post published!"); nav({ to: "/feed" }); }}
+          onClick={() => {
+            if (text.trim().length < 2) return toast.error(lang === "bn" ? "কিছু লিখুন" : "Write something");
+            addPost({ contentBn: text, contentEn: text, trustScore: score ?? 80 });
+            toast.success(lang === "bn" ? "পোস্ট প্রকাশিত!" : "Post published!");
+            nav({ to: "/feed" });
+          }}
           className="rounded-2xl bg-grad-indigo px-4 py-3 text-sm font-bold text-primary-foreground shadow-soft"
         >
           {t("composer_publish")}
         </button>
+
       </div>
     </div>
   );
