@@ -114,12 +114,15 @@ function RootComponent() {
         <ThemeProvider>
           <AuthProvider>
             <RealtimeProvider>
-              <SplashScreen />
-              <Outlet />
-              <FloatingReactions />
-              <Toaster position="top-center" richColors />
+              <PostsProvider>
+                <SplashScreen />
+                <Outlet />
+                <FloatingReactions />
+                <Toaster position="top-center" richColors />
+              </PostsProvider>
             </RealtimeProvider>
           </AuthProvider>
+
         </ThemeProvider>
       </I18nProvider>
     </QueryClientProvider>
